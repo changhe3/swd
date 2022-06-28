@@ -1,25 +1,39 @@
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use reqwest::header;
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
 use serde_aux::prelude::*;
 
 use crate::prelude::*;
 
-use super::{Reqwest, Wrapper};
+use super::{IterAdapter, Reqwest, Wrapper};
 
-#[derive(Debug, Serialize)]
-struct Payload<'a> {
-    #[serde(rename = "itemcount")]
-    count: u32,
-    #[serde(rename = "publishedfileids")]
-    file_id: &'a [FileId],
+#[derive(Debug)]
+struct Payload<I> {
+    // #[serde(rename = "itemcount")]
+    // #[serde(rename = "publishedfileids")]
+    file_id: I,
 }
 
-impl<'a> Payload<'a> {
-    fn new(file_id: &'a [FileId]) -> Self {
-        let count = file_id.len() as u32;
-        Self { count, file_id }
+impl<I> Payload<I> {
+    fn new(file_id: I) -> Self {
+        Self { file_id }
+    }
+}
+
+impl<I: Iterator<Item = FileId> + Clone> Serialize for Payload<I> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let adapter = IterAdapter {
+            iter: self.file_id.clone(),
+            len: 0.into(),
+        };
+        let mut state = serializer.serialize_struct("Payload", 2)?;
+        state.serialize_field("publishedfileids", &adapter)?;
+        state.serialize_field("itemcount", &adapter.len.get())?;
+        state.end()
     }
 }
 
@@ -62,7 +76,7 @@ pub struct DetailInner {
 
 const URL: &str = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/?";
 
-pub async fn call(file_ids: &[FileId]) -> Result<Response> {
+pub async fn call(file_ids: impl Iterator<Item = u64> + Clone) -> Result<Response> {
     let payload = Payload::new(file_ids);
     let payload = serde_qs::to_string(&payload)?;
 
@@ -86,7 +100,9 @@ mod tests {
     #[tokio::test]
     async fn test() {
         color_eyre::install().unwrap();
-        let resp = call(&[2824342092, 2529002857, 1111]).await.unwrap();
+        let resp = call([2824342092, 2529002857, 1111].into_iter())
+            .await
+            .unwrap();
         println!("{:#?}", resp);
     }
 }

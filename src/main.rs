@@ -3,11 +3,16 @@ mod prelude;
 mod util;
 
 use crate::prelude::*;
-use net::{get_collection_details, get_published_file_details::Detail};
-use serde::Deserialize;
-use std::collections::HashMap;
+use net::{
+    get_collection_details::{self, Detail as CollectionDetail},
+    get_published_file_details::{self, Detail as FileDetail},
+};
+use std::{collections::HashMap, fmt::Debug};
 use structopt::StructOpt;
-use tokio::main;
+use tokio::{
+    io::{stdout, AsyncWriteExt},
+    main,
+};
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "Download workshop item and collections from steam workshop")]
@@ -42,7 +47,7 @@ struct Params {
 struct WFile {
     id: FileId,
     children: Option<Vec<FileId>>,
-    details: Option<Detail>,
+    details: FileDetail,
 }
 
 impl WFile {
@@ -62,15 +67,35 @@ impl WFile {
 #[derive(Debug)]
 struct WFiles {
     params: Params,
-    listed_files: Vec<FileId>,
     all_files: HashMap<FileId, WFile>,
 }
 
 impl WFiles {
     async fn new(mut params: Params) -> Result<Self> {
-        let listed_files = params.files.split_off(0);
-        let response = get_collection_details::call(&listed_files).await?;
+        let c_details = get_collection_details::call(params.files.iter().copied()).await?;
+        let ids = c_details.details.iter().flat_map(|detail| {
+            let inner = detail
+                .children
+                .as_ref()
+                .map(|v| {
+                    v.iter().filter_map(|c| {
+                        if c.filetype == 0 {
+                            Some(c.file_id)
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .into_iter()
+                .flatten();
+            std::iter::once(detail.file_id).chain(inner)
+        });
+
         todo!()
+    }
+
+    fn invalid_id(id: FileId) {
+        println!("Invalid File ID: {}", id);
     }
 }
 
