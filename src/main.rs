@@ -3,9 +3,10 @@ mod prelude;
 mod util;
 
 use crate::prelude::*;
+use chrono::{DateTime, Utc};
 use net::{
     get_collection_details::{self, Detail as CollectionDetail},
-    get_published_file_details::{self, Detail as FileDetail},
+    get_published_file_details::{self, Detail as FileDetail, DetailInner},
 };
 use std::{collections::HashMap, fmt::Debug};
 use structopt::StructOpt;
@@ -45,9 +46,12 @@ struct Params {
 
 #[derive(Debug)]
 struct WFile {
-    id: FileId,
+    file_id: FileId,
     children: Option<Vec<FileId>>,
-    details: FileDetail,
+    title: String,
+    description: String,
+    time_created: DateTime<Utc>,
+    time_updated: DateTime<Utc>,
 }
 
 impl WFile {
@@ -71,27 +75,59 @@ struct WFiles {
 }
 
 impl WFiles {
-    async fn new(mut params: Params) -> Result<Self> {
-        let c_details = get_collection_details::call(params.files.iter().copied()).await?;
-        let ids = c_details.details.iter().flat_map(|detail| {
-            let inner = detail
-                .children
-                .as_ref()
-                .map(|v| {
-                    v.iter().filter_map(|c| {
-                        if c.filetype == 0 {
-                            Some(c.file_id)
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .into_iter()
-                .flatten();
+    async fn new(params: Params) -> Result<Self> {
+        let mut c_details = get_collection_details::call(params.files.iter().copied()).await?;
+
+        let all_ids = c_details.details.values().flat_map(|detail| {
+            let inner = detail.children.as_ref().into_iter().flat_map(|v| {
+                v.iter()
+                    .filter_map(|c| (c.filetype == 0).then(|| c.file_id))
+            });
             std::iter::once(detail.file_id).chain(inner)
         });
+        let f_details = get_published_file_details::call(all_ids).await?;
 
-        todo!()
+        let all_files = f_details
+            .details
+            .into_iter()
+            .filter_map(|d| {
+                if d.result == 1 {
+                    let DetailInner {
+                        title,
+                        description,
+                        time_created,
+                        time_updated,
+                    } = d.inner.unwrap();
+
+                    let file_id = d.file_id;
+                    let children = {
+                        let children = &mut c_details.details.get_mut(&file_id).unwrap().children;
+                        children.as_mut().map(|children| {
+                            children.sort_by_key(|c| c.sortorder);
+                            children
+                                .iter()
+                                .filter_map(|c| (c.filetype == 0).then(|| c.file_id))
+                                .collect::<Vec<_>>()
+                        })
+                    };
+
+                    let wfile = WFile {
+                        file_id,
+                        children,
+                        title,
+                        description,
+                        time_created,
+                        time_updated,
+                    };
+                    Some((file_id, wfile))
+                } else {
+                    Self::invalid_id(d.file_id);
+                    None
+                }
+            })
+            .collect::<HashMap<_, _>>();
+
+        Ok(Self { params, all_files })
     }
 
     fn invalid_id(id: FileId) {

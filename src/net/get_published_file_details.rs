@@ -51,11 +51,11 @@ pub struct Detail {
         rename = "publishedfileid",
         deserialize_with = "deserialize_number_from_string"
     )]
-    file_id: FileId,
-    result: u32,
+    pub file_id: FileId,
+    pub result: u32,
 
     #[serde(flatten)]
-    inner: Option<DetailInner>,
+    pub inner: Option<DetailInner>,
 }
 
 impl Detail {
@@ -66,12 +66,12 @@ impl Detail {
 
 #[derive(Debug, Deserialize)]
 pub struct DetailInner {
-    title: String,
-    description: String,
+    pub title: String,
+    pub description: String,
     #[serde(with = "ts_seconds")]
-    time_created: DateTime<Utc>,
+    pub time_created: DateTime<Utc>,
     #[serde(with = "ts_seconds")]
-    time_updated: DateTime<Utc>,
+    pub time_updated: DateTime<Utc>,
 }
 
 const URL: &str = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/?";

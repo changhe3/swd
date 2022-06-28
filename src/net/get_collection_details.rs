@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use reqwest::header;
 use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
@@ -37,8 +39,46 @@ impl<I: Iterator<Item = FileId> + Clone> Serialize for Payload<I> {
 
 #[derive(Debug, Deserialize)]
 pub struct Response {
-    #[serde(rename = "collectiondetails")]
-    pub details: Vec<Detail>,
+    #[serde(rename = "collectiondetails", with = "deserialize_map")]
+    pub details: HashMap<FileId, Detail>,
+}
+
+mod deserialize_map {
+
+    use serde::{
+        de::{SeqAccess, Visitor},
+        Deserializer,
+    };
+
+    use super::*;
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<HashMap<FileId, Detail>, D::Error> {
+        struct MapVisitor;
+
+        impl<'de> Visitor<'de> for MapVisitor {
+            type Value = HashMap<FileId, Detail>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a sequence of items")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut map = HashMap::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(item) = seq.next_element::<Detail>()? {
+                    map.insert(item.file_id, item);
+                }
+
+                Ok(map)
+            }
+        }
+
+        deserializer.deserialize_seq(MapVisitor)
+    }
 }
 
 #[derive(Debug, Deserialize)]
