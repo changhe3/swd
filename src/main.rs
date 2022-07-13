@@ -55,7 +55,7 @@ struct WFile {
     app_id: FileId,
     children: Option<Vec<FileId>>,
     title: String,
-    description: String,
+    _description: String,
     time_created: DateTime<Utc>,
     time_updated: DateTime<Utc>,
 }
@@ -177,7 +177,7 @@ impl WFiles {
                     app_id,
                     children,
                     title,
-                    description,
+                    _description: description,
                     time_created,
                     time_updated,
                 };
