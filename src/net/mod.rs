@@ -1,8 +1,8 @@
 use std::cell::Cell;
 
-use reqwest::Client;
+use once_cell::sync::OnceCell;
+use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use tokio::sync::OnceCell;
 
 use crate::prelude::FileId;
 
@@ -10,11 +10,11 @@ pub mod get_collection_details;
 pub mod get_published_file_details;
 
 struct Reqwest;
-static CLIENT: OnceCell<Client> = OnceCell::const_new();
+static CLIENT: OnceCell<Client> = OnceCell::new();
 
 impl Reqwest {
-    async fn client() -> &'static Client {
-        CLIENT.get_or_init(|| async { Client::new() }).await
+    fn client() -> &'static Client {
+        CLIENT.get_or_init(Client::new)
     }
 }
 
@@ -36,7 +36,7 @@ impl<I: Iterator<Item = FileId> + Clone> Serialize for IterAdapter<I> {
         serializer.collect_seq(
             self.iter
                 .clone()
-                .inspect(|id| self.len.set(self.len.get() + 1)),
+                .inspect(|_id| self.len.set(self.len.get() + 1)),
         )
     }
 }

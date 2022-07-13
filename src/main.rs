@@ -10,10 +10,15 @@ use net::{
     get_collection_details,
     get_published_file_details::{self, DetailInner},
 };
-use std::{collections::HashMap, fmt::Debug, fs::File, process::Command, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+    fs::File,
+    process::Command,
+    str::FromStr,
+};
 use std::{env::current_dir, fmt::Write as FmtWrite, io::Write as IoWrite};
 use structopt::StructOpt;
-use tokio::main;
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "Download workshop item and collections from steam workshop")]
@@ -120,9 +125,9 @@ struct WFiles {
 }
 
 impl WFiles {
-    async fn new(mut params: Params) -> Result<Self> {
+    fn new(mut params: Params) -> Result<Self> {
         // retieve the mod ids of each collection listed in params.files
-        let mut c_details = get_collection_details::call(params.files.iter().copied()).await?;
+        let mut c_details = get_collection_details::call(params.files.iter().copied())?;
 
         // retrieve details about all mods and collections listed in params.files, plus all submods inside each collection
         let all_ids = c_details.details.values().flat_map(|detail| {
@@ -133,13 +138,13 @@ impl WFiles {
             });
             std::iter::once(detail.file_id).chain(inner).dedup()
         });
-        let f_details = get_published_file_details::call(all_ids).await?;
+        let f_details = get_published_file_details::call(all_ids)?;
 
         let all_files = f_details
             .details
             .into_iter()
             .filter_map(|d| {
-                if d.result != 1 {
+                if !d.is_valid_item() {
                     Self::invalid_id(d.file_id);
                     return None;
                 }
@@ -192,6 +197,7 @@ impl WFiles {
     fn build_cmd(&self) -> Result<String> {
         let mut cmd = format!("steamcmd +login {} ", self.params.username);
         let wd = current_dir().unwrap();
+        let mut all_mods = HashSet::new();
 
         for file_id in self.params.files.iter() {
             let file = &self.all_files[file_id];
@@ -200,11 +206,13 @@ impl WFiles {
             }
 
             if !file.is_collection() {
-                write!(
-                    cmd,
-                    "+workshop_download_item {} {} ",
-                    file.app_id, file.file_id
-                )?;
+                if all_mods.insert(file_id) {
+                    write!(
+                        cmd,
+                        "+workshop_download_item {} {} ",
+                        file.app_id, file.file_id
+                    )?;
+                }
             } else {
                 let save_path = self
                     .params
@@ -218,11 +226,13 @@ impl WFiles {
                     let inner_file = &self.all_files[file_id];
                     match inner_file.prompt(self.params.review)? {
                         ReviewOptions::Yes => {
-                            write!(
-                                cmd,
-                                "+workshop_download_item {} {} ",
-                                inner_file.app_id, inner_file.file_id
-                            )?;
+                            if all_mods.insert(&inner_file.file_id) {
+                                write!(
+                                    cmd,
+                                    "+workshop_download_item {} {} ",
+                                    inner_file.app_id, inner_file.file_id
+                                )?;
+                            }
 
                             if let Some(save_file) = save_file.as_mut() {
                                 match self.params.save.as_deref().unwrap() {
@@ -278,32 +288,37 @@ impl WFiles {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_null() -> Result<()> {
+    #[test]
+    fn test_null() -> Result<()> {
         let params = Params::from_iter(["swd"].into_iter());
-        __main__(params).await
+        __main__(params)
     }
 
     #[test]
-    fn test_ping() {
-        let mut handle = Command::new("ping").arg("www.google.com").spawn().unwrap();
-        handle.wait().unwrap();
+    fn test_collection() -> Result<()> {
+        let params = Params::from_iter(["swd", "368330611"].into_iter());
+        __main__(params)
+    }
+
+    #[test]
+    fn test_collection_review() -> Result<()> {
+        let params = Params::from_iter(["swd", "-r", "368330611", "116676096"].into_iter());
+        __main__(params)
     }
 }
 
-async fn __main__(params: Params) -> Result<()> {
+fn __main__(params: Params) -> Result<()> {
     color_eyre::install()?;
     if params.files.is_empty() {
         Params::clap().print_long_help()?;
     } else {
-        let wfiles = WFiles::new(params).await?;
+        let wfiles = WFiles::new(params)?;
         wfiles.run()?;
     }
 
     Ok(())
 }
 
-#[main]
-async fn main() -> Result<()> {
-    __main__(Params::from_args()).await
+fn main() -> Result<()> {
+    __main__(Params::from_args())
 }

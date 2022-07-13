@@ -108,19 +108,18 @@ pub struct Child {
 
 const URL: &str = r"https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/?";
 
-pub async fn call(file_ids: impl Iterator<Item = u64> + Clone) -> Result<Response> {
+pub fn call(file_ids: impl Iterator<Item = u64> + Clone) -> Result<Response> {
     let payload = Payload::new(file_ids);
     let payload = serde_qs::to_string(&payload)?;
 
-    let client = Reqwest::client().await;
+    let client = Reqwest::client();
     let response = client
         .post(URL)
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(payload)
-        .send()
-        .await?;
+        .send()?;
 
-    let Wrapper { response } = response.json::<Wrapper<Response>>().await?;
+    let Wrapper { response } = response.json::<Wrapper<Response>>()?;
     Ok(response)
 }
 
@@ -128,10 +127,10 @@ pub async fn call(file_ids: impl Iterator<Item = u64> + Clone) -> Result<Respons
 mod tests {
     use super::call;
 
-    #[tokio::test]
-    async fn test() {
+    #[test]
+    fn test() {
         color_eyre::install().unwrap();
-        let resp = call([1626860092, 2529002857].into_iter()).await.unwrap();
+        let resp = call([1626860092, 2529002857].into_iter()).unwrap();
         println!("{:#?}", resp);
     }
 }
