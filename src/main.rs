@@ -108,7 +108,7 @@ impl WFile {
         );
         let res = if review {
             let mut input = Input::<ReviewOptions>::new();
-            input.with_prompt(format!("Description: {}", self.description));
+            input.with_prompt("Install? [yes/no/skip]");
             input.default(ReviewOptions::Yes);
             input.interact_text()?
         } else {
@@ -218,7 +218,7 @@ impl WFiles {
                     .params
                     .save
                     .as_ref()
-                    .map(|_| wd.join(format!("{}_{}.csv", file_id, file.title)));
+                    .map(|_| wd.join(format!("{} {}.csv", file_id, file.title)));
 
                 let mut save_file = save_path.map(File::create).transpose()?;
 
@@ -302,7 +302,8 @@ mod tests {
 
     #[test]
     fn test_collection_review() -> Result<()> {
-        let params = Params::from_iter(["swd", "-r", "368330611", "116676096"].into_iter());
+        let params =
+            Params::from_iter(["swd", "-r", "--save=csv", "368330611", "116676096"].into_iter());
         __main__(params)
     }
 }
