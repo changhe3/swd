@@ -39,7 +39,10 @@ impl<I: Iterator<Item = FileId> + Clone> Serialize for Payload<I> {
 
 #[derive(Debug, Deserialize)]
 pub struct Response {
-    #[serde(rename = "collectiondetails", with = "deserialize_map")]
+    #[serde(
+        rename = "collectiondetails",
+        deserialize_with = "deserialize_map::deserialize"
+    )]
     pub details: HashMap<FileId, Detail>,
 }
 

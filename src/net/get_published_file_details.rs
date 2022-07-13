@@ -66,6 +66,11 @@ impl Detail {
 
 #[derive(Debug, Deserialize)]
 pub struct DetailInner {
+    #[serde(
+        rename = "consumer_app_id",
+        deserialize_with = "deserialize_number_from_string"
+    )]
+    pub app_id: FileId,
     pub title: String,
     pub description: String,
     #[serde(with = "ts_seconds")]
@@ -88,7 +93,7 @@ pub async fn call(file_ids: impl Iterator<Item = u64> + Clone) -> Result<Respons
         .send()
         .await?;
 
-    let Wrapper { response } = dbg!(response).json::<Wrapper<Response>>().await?;
+    let Wrapper { response } = response.json::<Wrapper<Response>>().await?;
     Ok(response)
 }
 
