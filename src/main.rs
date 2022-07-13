@@ -264,7 +264,11 @@ impl WFiles {
             println!("\n{}", cmd);
         } else {
             let mut cmd = cmd.split_ascii_whitespace();
-            Command::new(cmd.next().unwrap()).args(cmd).output()?;
+            if let Ok(mut proc) = Command::new(cmd.next().unwrap()).args(cmd).spawn() {
+                proc.wait().unwrap();
+            } else {
+                return Err(color_eyre::eyre::eyre!("steamcmd failed"));
+            }
         }
         Ok(())
     }
@@ -278,6 +282,12 @@ mod tests {
     async fn test_null() -> Result<()> {
         let params = Params::from_iter(["swd"].into_iter());
         __main__(params).await
+    }
+
+    #[test]
+    fn test_ping() {
+        let mut handle = Command::new("ping").arg("www.google.com").spawn().unwrap();
+        handle.wait().unwrap();
     }
 }
 
