@@ -1,4 +1,5 @@
 # swd
+(This software has not been extensively tested, use at your own risk. Require steamcmd under PATH)
 
 ```
 swd 0.1.0
