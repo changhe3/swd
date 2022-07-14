@@ -1,4 +1,6 @@
 # swd
+A command-line utility to download workshop item and collections from steam workshop
+
 (This software has not been extensively tested, use at your own risk. Require steamcmd under PATH)
 
 ```
