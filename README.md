@@ -1,5 +1,5 @@
 # swd
-A command-line utility to download workshop item and collections from steam workshop. You need [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Downloading_SteamCMD) to use this software, and remember to include it under the PATH environment variable.
+A command-line utility to download workshop item and collections from steam workshop. You need [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Downloading_SteamCMD) to use this software, and remember to include it under the PATH environment variable. The mods are downloaded under /path/to/steamcmd/steamapps/workshop/content/
 
 (This software has not been extensively tested, use at your own risk. Require steamcmd under PATH)
 
