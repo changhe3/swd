@@ -30,10 +30,20 @@ struct Params {
     )]
     exec: bool,
 
-    #[structopt(short, long, help = "Review each mod one by one")]
+    #[structopt(
+        short,
+        long,
+        help = "Review each mod one by one. Input yes/no/skip for each mod or collection. 
+        'skip', otherwise equivalent to 'no', is used to skip rest of the mods in the context of a collection."
+    )]
     review: bool,
 
-    #[structopt(short, long, default_value = "anonymous")]
+    #[structopt(
+        short,
+        long,
+        default_value = "anonymous",
+        help = "Steam username for non-anonymous download"
+    )]
     username: String,
 
     #[structopt(
