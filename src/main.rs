@@ -34,7 +34,7 @@ struct Params {
         short,
         long,
         help = "Review each mod one by one. Input yes/no/skip for each mod or collection. 
-        'skip', otherwise equivalent to 'no', is used to skip rest of the mods in the context of a collection."
+        The option 'skip', otherwise equivalent to 'no', can be used to skip rest of the mods in the context of a collection."
     )]
     review: bool,
 
