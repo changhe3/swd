@@ -1,5 +1,6 @@
 # swd
 swd 0.1.1
+
 (This software has not been extensively tested, use at your own risk. Require steamcmd under PATH)
 
 A command-line utility to download workshop item and collections from steam workshop. You need
