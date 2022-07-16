@@ -16,3 +16,4 @@ serde-aux = "3.0.1"
 chrono = { version = "0.4.19", features = ["serde"] }
 itertools = "0.10.3"
 dialoguer = "0.10.1"
+shlex = "1.1.0"

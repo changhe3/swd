@@ -103,7 +103,6 @@ mod tests {
 
     #[test]
     fn test() {
-        color_eyre::install().unwrap();
         let resp = call([2824342092, 2529002857, 1111].into_iter()).unwrap();
         println!("{:#?}", resp);
     }

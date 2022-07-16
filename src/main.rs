@@ -12,19 +12,23 @@ use net::{
 };
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Debug,
+    fmt::{format, Debug},
     fs::File,
+    path::PathBuf,
     process::Command,
     str::FromStr,
 };
-use std::{env::current_dir, fmt::Write as FmtWrite, io::Write as IoWrite};
+use std::{env::current_dir, io::Write as IoWrite};
 use structopt::StructOpt;
+use util::PrettyCmd;
 
+///
 /// (This software has not been extensively tested, use at your own risk. Require steamcmd under PATH)
 ///
+/// You would need [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Downloading_SteamCMD) to use this software, and remember to include it under the PATH environment variable.
 /// A command-line utility to download workshop item and collections from steam workshop.
-/// You need [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Downloading_SteamCMD) to use this software, and remember to include it under the PATH environment variable.
-/// The default download directory is /path/to/steamcmd/steamapps/workshop/content/.
+/// This software assembles a command for SteamCMD to execute. By default, this command is only printed to standard output, you need to use the `-e` flag to automatically execute the command.
+/// The default download directory is /path/to/steamcmd/steamapps/workshop/content/. You can set an alternative location with `-o`.
 #[derive(Debug, StructOpt)]
 struct Params {
     /// Execute the produced command through steamcmd, otherwise the command is only printed to standard output and need to be executed manually.
@@ -40,12 +44,17 @@ struct Params {
     #[structopt(short, long, default_value = "anonymous")]
     username: String,
 
+    /// Set the path of the download location. The path will be passed to force_install_dir in SteamCMD.
+    #[structopt(short, long, name = "path")]
+    output: Option<PathBuf>,
+
     /// Save the mod orders of collections to specified format to the current working directory.
     #[structopt(
         long,
         takes_value(true),
         require_equals(true),
         possible_values(&["simple", "csv"]),
+        name = "format",
     )]
     save: Option<String>,
 
@@ -202,8 +211,15 @@ impl WFiles {
         println!("Invalid File ID: {}", id);
     }
 
-    fn build_cmd(&self) -> Result<String> {
-        let mut cmd = format!("steamcmd +login {} ", self.params.username);
+    fn build_cmd(&self) -> Result<Command> {
+        let mut cmd = Command::new("steamcmd");
+        if let Some(path) = self.params.output.as_deref() {
+            cmd.arg("+force_install_dir");
+            cmd.arg(path);
+        }
+
+        cmd.arg("+login").arg(&self.params.username);
+
         let wd = current_dir().unwrap();
         let mut all_mods = HashSet::new();
 
@@ -215,11 +231,10 @@ impl WFiles {
 
             if !file.is_collection() {
                 if all_mods.insert(file_id) {
-                    write!(
-                        cmd,
-                        "+workshop_download_item {} {} ",
+                    cmd.arg(format!(
+                        "+workshop_download_item {} {}",
                         file.app_id, file.file_id
-                    )?;
+                    ));
                 }
             } else {
                 let save_path = self
@@ -235,11 +250,10 @@ impl WFiles {
                     match inner_file.prompt(self.params.review)? {
                         ReviewOptions::Yes => {
                             if all_mods.insert(&inner_file.file_id) {
-                                write!(
-                                    cmd,
-                                    "+workshop_download_item {} {} ",
+                                cmd.arg(format!(
+                                    "+workshop_download_item {} {}",
                                     inner_file.app_id, inner_file.file_id
-                                )?;
+                                ));
                             }
 
                             if let Some(save_file) = save_file.as_mut() {
@@ -272,21 +286,18 @@ impl WFiles {
             }
         }
 
-        cmd.push_str("+quit ");
-        Ok(cmd.replace('\n', ""))
+        cmd.arg("+quit");
+        Ok(cmd)
     }
 
     fn run(&self) -> Result<()> {
-        let cmd = self.build_cmd()?;
+        let mut cmd = self.build_cmd()?;
         if !self.params.exec {
-            println!("\n{}", cmd);
+            println!("\n{}", PrettyCmd::new(&cmd))
+        } else if let Ok(mut proc) = cmd.spawn() {
+            proc.wait().unwrap();
         } else {
-            let mut cmd = cmd.split_ascii_whitespace();
-            if let Ok(mut proc) = Command::new(cmd.next().unwrap()).args(cmd).spawn() {
-                proc.wait().unwrap();
-            } else {
-                return Err(color_eyre::eyre::eyre!("steamcmd failed"));
-            }
+            return Err(color_eyre::eyre::eyre!("steamcmd failed"));
         }
         Ok(())
     }
@@ -309,15 +320,28 @@ mod tests {
     }
 
     #[test]
-    fn test_collection_review() -> Result<()> {
-        let params =
-            Params::from_iter(["swd", "-r", "--save=csv", "368330611", "116676096"].into_iter());
+    fn test_output() -> Result<()> {
+        let params = Params::from_iter(
+            [
+                "swd",
+                "-o",
+                r"C:\User\admin\My Documents\My Mods",
+                "368330611",
+            ]
+            .into_iter(),
+        );
         __main__(params)
     }
+
+    // #[test]
+    // fn test_collection_review() -> Result<()> {
+    //     let params =
+    //         Params::from_iter(["swd", "-r", "--save=csv", "368330611", "116676096"].into_iter());
+    //     __main__(params)
+    // }
 }
 
 fn __main__(params: Params) -> Result<()> {
-    color_eyre::install()?;
     if params.files.is_empty() {
         Params::clap().print_long_help()?;
     } else {
@@ -329,5 +353,6 @@ fn __main__(params: Params) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    color_eyre::install()?;
     __main__(Params::from_args())
 }
