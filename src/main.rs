@@ -108,7 +108,11 @@ impl WFile {
         };
         println!(
             "Found {} \t\t {}: \t {} \t\t Created at: \t {} \t\t Updated at: \t {} ",
-            item, self.file_id, self.title, self.time_created, self.time_updated
+            item,
+            self.file_id,
+            self.title,
+            self.time_created.naive_local(),
+            self.time_updated.naive_local(),
         );
         let res = if review {
             let mut input = Input::<ReviewOptions>::new();
