@@ -20,42 +20,36 @@ use std::{
 use std::{env::current_dir, fmt::Write as FmtWrite, io::Write as IoWrite};
 use structopt::StructOpt;
 
+/// (This software has not been extensively tested, use at your own risk. Require steamcmd under PATH)
+///
+/// A command-line utility to download workshop item and collections from steam workshop.
+/// You need [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Downloading_SteamCMD) to use this software, and remember to include it under the PATH environment variable.
+/// The default download directory is /path/to/steamcmd/steamapps/workshop/content/.
 #[derive(Debug, StructOpt)]
-#[structopt(about = "Download workshop item and collections from steam workshop")]
 struct Params {
-    #[structopt(
-        short,
-        long,
-        help = "Execute the produced command through steamcmd, otherwise the command is only printed to stdout"
-    )]
+    /// Execute the produced command through steamcmd, otherwise the command is only printed to standard output and need to be executed manually.
+    #[structopt(short, long)]
     exec: bool,
 
-    #[structopt(
-        short,
-        long,
-        help = "Review each mod one by one. Input yes/no/skip for each mod or collection. 
-        The option 'skip', otherwise equivalent to 'no', can be used to skip rest of the mods in the context of a collection."
-    )]
+    /// Review each mod one by one. Input yes/no/skip for each mod or collection.
+    /// The option 'skip', otherwise equivalent to 'no', can be used to skip rest of the mods in the context of a collection.
+    #[structopt(short, long)]
     review: bool,
 
-    #[structopt(
-        short,
-        long,
-        default_value = "anonymous",
-        help = "Steam username for non-anonymous download"
-    )]
+    /// Steam username for non-anonymous download
+    #[structopt(short, long, default_value = "anonymous")]
     username: String,
 
+    /// Save the mod orders of collections to specified format to the current working directory.
     #[structopt(
         long,
         takes_value(true),
         require_equals(true),
         possible_values(&["simple", "csv"]),
-        help = "Save the mod orders of collections to specified format to the current working directory"
     )]
     save: Option<String>,
 
-    #[structopt(help = "File IDs of the mods and collections to download")]
+    /// File IDs of the mods and collections to download, can be found at the end of the url for each workshop item.
     files: Vec<FileId>,
 }
 
